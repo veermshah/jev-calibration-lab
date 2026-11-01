@@ -70,6 +70,23 @@ def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
+def _cap_below(mass: np.ndarray, cap: float) -> np.ndarray:
+    """Water-fill `mass` so no entry exceeds `cap` while keeping the total (keeps the argmax)."""
+    m = mass.astype(float).copy()
+    total = m.sum()
+    if cap * len(m) <= total:
+        return np.full(len(m), total / len(m))
+    for _ in range(len(m)):
+        over = m > cap
+        if not over.any():
+            break
+        excess = (m[over] - cap).sum()
+        m[over] = cap
+        free = ~over & (m < cap)
+        m[free] += excess * m[free] / m[free].sum() if m[free].sum() > 0 else excess / free.sum()
+    return m
+
+
 def synthetic_distribution(
     decision: Decision, profile: SyntheticProfile, repeat: int = 0
 ) -> tuple[dict[str, float], float]:
@@ -103,9 +120,10 @@ def synthetic_distribution(
     if label != decision.gold:  # the gold class usually holds most of the leftover mass
         weights = weights * 0.4
         weights[rest.index(decision.gold)] += 0.6
+    other = _cap_below((1 - stated) * weights / weights.sum(), cap=stated * 0.98)
     probs = {label: stated}
-    for cid, w in zip(rest, weights, strict=True):
-        probs[cid] = float((1 - stated) * w / weights.sum())
+    for cid, v in zip(rest, other, strict=True):
+        probs[cid] = float(v)
     latency = float(profile.latency_ms * math.exp(rep.normal(0, profile.latency_sigma)))
     return {cid: probs[cid] for cid in ids}, latency
 

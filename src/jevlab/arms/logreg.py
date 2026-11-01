@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -50,7 +51,9 @@ class LogRegModel(DecisionModel):
         )
         if n_classes < 2:
             raise ValueError(f"training split for {dataset} has a single class")
-        pipe.fit(texts, labels)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)  # sklearn attribute-layout notice
+            pipe.fit(texts, labels)
         self._models[dataset] = pipe
         self.train_sizes[dataset] = len(texts)
 

@@ -130,3 +130,15 @@ def test_real_run_without_key_is_a_clear_error(prices, cache, budget, tmp_path, 
 def test_unknown_arm(prices, cache, budget, tmp_path):
     with pytest.raises(ConfigError):
         build_arms(["nope"], {}, dry_run=True, prices=prices, cache=cache, budget=budget, data_dir=tmp_path)
+
+
+def test_synthetic_label_stays_argmax_on_many_choices():
+    from jevlab.schema import Decision
+
+    choices = {f"c{i}": "" for i in range(6)}
+    hits = 0
+    for i in range(400):
+        d = Decision(f"liar-{i}", "liar", "s", "q", choices, "c0")
+        probs, _ = synthetic_distribution(d, PROFILES["jev"], 0)
+        hits += max(probs, key=probs.get) == "c0"
+    assert 0.2 < hits / 400 < 0.4  # LIAR base accuracy is 0.30 in the generator
