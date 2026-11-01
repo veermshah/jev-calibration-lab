@@ -56,7 +56,9 @@ def summarise(
     arms: dict[str, dict[str, Any]] = {}
     for r in rows:
         arms.setdefault(r["arm"], {"model": r["model"], "synthetic": bool(r["synthetic"])})
-    datasets = sorted({r["dataset"] for r in rows}, key=lambda d: list(DATASETS).index(d) if d in DATASETS else 99)
+    datasets = sorted(
+        {r["dataset"] for r in rows}, key=lambda d: list(DATASETS).index(d) if d in DATASETS else 99
+    )
 
     out: dict[str, Any] = {
         "generated": dt.date.today().isoformat(),
@@ -79,7 +81,11 @@ def summarise(
         main[(arm, ds)] = r0
         out["datasets"].setdefault(
             ds,
-            {"title": DATASETS[ds].title if ds in DATASETS else ds, "n": len(r0), "k": len(r0[0]["choices"])},
+            {
+                "title": DATASETS[ds].title if ds in DATASETS else ds,
+                "n": len(r0),
+                "k": len(r0[0]["choices"]),
+            },
         )
 
     for (arm, ds), r0 in sorted(main.items()):
@@ -136,8 +142,13 @@ def summarise(
                 rep_probs = [np.array([reps[k][i]["probs"] for i in shared]) for k in sorted(reps)]
                 y_sub = np.array([reps[0][i]["choices"].index(reps[0][i]["gold"]) for i in shared])
                 out["variance"].append(
-                    {"arm": arm, "dataset": ds, "synthetic": arms[arm]["synthetic"], "items": len(shared),
-                     **M.run_to_run(rep_probs, y_sub)}
+                    {
+                        "arm": arm,
+                        "dataset": ds,
+                        "synthetic": arms[arm]["synthetic"],
+                        "items": len(shared),
+                        **M.run_to_run(rep_probs, y_sub),
+                    }
                 )
 
     # macro averages across datasets
@@ -145,7 +156,18 @@ def summarise(
     for m in out["metrics"]:
         by_arm[m["arm"]].append(m)
     for arm, ms_list in by_arm.items():
-        keys = ["accuracy", "ece", "ece_adaptive", "brier", "nll", "aurc", "acc_at_80", "p50_ms", "p95_ms", "cost_per_1k"]
+        keys = [
+            "accuracy",
+            "ece",
+            "ece_adaptive",
+            "brier",
+            "nll",
+            "aurc",
+            "acc_at_80",
+            "p50_ms",
+            "p95_ms",
+            "cost_per_1k",
+        ]
         out["metrics"].append(
             {
                 "arm": arm,
@@ -199,14 +221,31 @@ def summarise(
                 "second": second,
                 "synthetic": arms[first]["synthetic"] or arms[second]["synthetic"],
                 "points": sweep(
-                    p1, p2, y,
-                    [r1[i]["cost_usd"] for i in ids], [r2[i]["cost_usd"] for i in ids],
-                    [r1[i]["latency_ms"] for i in ids], [r2[i]["latency_ms"] for i in ids],
+                    p1,
+                    p2,
+                    y,
+                    [r1[i]["cost_usd"] for i in ids],
+                    [r2[i]["cost_usd"] for i in ids],
+                    [r1[i]["latency_ms"] for i in ids],
+                    [r2[i]["latency_ms"] for i in ids],
                 ),
             }
     out["reliability"] = dict(out["reliability"])
     out["risk_coverage"] = dict(out["risk_coverage"])
     return out
+
+
+def json_safe(obj: Any) -> Any:
+    """Replace NaN/inf with None so the file is strict JSON (browsers reject NaN)."""
+    if isinstance(obj, float):
+        return obj if np.isfinite(obj) else None
+    if isinstance(obj, np.floating | np.integer):
+        return json_safe(obj.item())
+    if isinstance(obj, dict):
+        return {k: json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list | tuple):
+        return [json_safe(v) for v in obj]
+    return obj
 
 
 # --------------------------------------------------------------------------- figures
@@ -229,7 +268,9 @@ def make_figures(summary: dict[str, Any], fig_dir: Path) -> list[str]:
     colors = _colors(arms)
     syn = {a: summary["arms"][a]["synthetic"] for a in arms}
     any_syn = any(syn.values())
-    note = "Arms marked (synthetic) are dry-run demo output, not real measurements." if any_syn else ""
+    note = (
+        "Arms marked (synthetic) are dry-run demo output, not real measurements." if any_syn else ""
+    )
     written: list[str] = []
 
     def finish(fig: Any, name: str, title: str) -> None:
@@ -240,15 +281,23 @@ def make_figures(summary: dict[str, Any], fig_dir: Path) -> list[str]:
         written.append(name)
 
     # reliability diagrams
-    fig, axes = plt.subplots(len(datasets), len(arms), figsize=(2.6 * len(arms), 2.5 * len(datasets)), squeeze=False)
+    fig, axes = plt.subplots(
+        len(datasets), len(arms), figsize=(2.6 * len(arms), 2.5 * len(datasets)), squeeze=False
+    )
     for i, ds in enumerate(datasets):
         for j, arm in enumerate(arms):
             ax = axes[i][j]
             ax.plot([0, 1], [0, 1], ls="--", lw=0.8, color="#9ca3af")
             bins = summary["reliability"].get(arm, {}).get(ds, [])
             for b in bins:
-                ax.bar((b["lo"] + b["hi"]) / 2, b["acc"], width=b["hi"] - b["lo"], color=colors[arm],
-                       alpha=0.75, edgecolor="white")
+                ax.bar(
+                    (b["lo"] + b["hi"]) / 2,
+                    b["acc"],
+                    width=b["hi"] - b["lo"],
+                    color=colors[arm],
+                    alpha=0.75,
+                    edgecolor="white",
+                )
                 ax.plot((b["lo"] + b["hi"]) / 2, b["conf"], marker="_", color="black", ms=8)
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
@@ -271,7 +320,13 @@ def make_figures(summary: dict[str, Any], fig_dir: Path) -> list[str]:
             pts = summary["risk_coverage"].get(arm, {}).get(ds)
             if pts:
                 xs, ys = zip(*pts, strict=True)
-                ax.plot(xs, ys, color=colors[arm], ls="--" if syn[arm] else "-", label=label(arm, syn[arm]))
+                ax.plot(
+                    xs,
+                    ys,
+                    color=colors[arm],
+                    ls="--" if syn[arm] else "-",
+                    label=label(arm, syn[arm]),
+                )
         ax.set_title(ds, fontsize=9)
         ax.set_xlabel("coverage", fontsize=8)
         ax.set_ylabel("risk (error rate)", fontsize=8)
@@ -287,11 +342,27 @@ def make_figures(summary: dict[str, Any], fig_dir: Path) -> list[str]:
             c = summary["cascade"][ds]
             pts = c["points"]
             ax = axes[0][i]
-            ax.plot([p["cost_per_1k"] for p in pts], [p["accuracy"] for p in pts], marker="o", ms=3, color="#111827")
-            ax.scatter([pts[0]["cost_per_1k"]], [pts[0]["accuracy"]], color=colors.get(c["first"], "C0"), zorder=3,
-                       label=f"{c['first']} only")
-            ax.scatter([pts[-1]["cost_per_1k"]], [pts[-1]["accuracy"]], color=colors.get(c["second"], "C1"), zorder=3,
-                       label=f"{c['second']} only")
+            ax.plot(
+                [p["cost_per_1k"] for p in pts],
+                [p["accuracy"] for p in pts],
+                marker="o",
+                ms=3,
+                color="#111827",
+            )
+            ax.scatter(
+                [pts[0]["cost_per_1k"]],
+                [pts[0]["accuracy"]],
+                color=colors.get(c["first"], "C0"),
+                zorder=3,
+                label=f"{label(c['first'], syn.get(c['first'], False))} only",
+            )
+            ax.scatter(
+                [pts[-1]["cost_per_1k"]],
+                [pts[-1]["accuracy"]],
+                color=colors.get(c["second"], "C1"),
+                zorder=3,
+                label=f"{label(c['second'], syn.get(c['second'], False))} only",
+            )
             ax.set_xscale("symlog", linthresh=0.01)
             ax.set_title(ds, fontsize=9)
             ax.set_xlabel("$ per 1k decisions", fontsize=8)
@@ -299,7 +370,11 @@ def make_figures(summary: dict[str, Any], fig_dir: Path) -> list[str]:
             ax.tick_params(labelsize=7)
         axes[0][0].legend(fontsize=7)
         first = summary["cascade"][cds[0]]
-        finish(fig, "cascade.png", f"Cascade: {first['first']} first, escalate to {first['second']} below tau")
+        finish(
+            fig,
+            "cascade.png",
+            f"Cascade: {first['first']} first, escalate to {first['second']} below tau",
+        )
 
     # recalibration
     rec = summary["recalibration"]
@@ -315,7 +390,9 @@ def make_figures(summary: dict[str, Any], fig_dir: Path) -> list[str]:
             ax.bar(j, before, width, color="#9ca3af", label="raw" if j == 0 else None)
             for k, m in enumerate(methods):
                 after = np.mean([r["ece_after"] for r in rs if r["method"] == m])
-                ax.bar(j + (k + 1) * width, after, width, color=f"C{k}", label=m if j == 0 else None)
+                ax.bar(
+                    j + (k + 1) * width, after, width, color=f"C{k}", label=m if j == 0 else None
+                )
         ax.set_xticks([j + width * len(methods) / 2 for j in range(len(arms))])
         ax.set_xticklabels([label(a, syn[a]) for a in arms], fontsize=8)
         ax.set_ylabel("ECE (macro over datasets)", fontsize=8)
@@ -327,10 +404,20 @@ def make_figures(summary: dict[str, Any], fig_dir: Path) -> list[str]:
     if macro:
         fig, ax = plt.subplots(figsize=(5.2, 3.6))
         for m in macro:
-            ax.scatter(m["p50_ms"], m["cost_per_1k"], s=60, color=colors[m["arm"]],
-                       marker="s" if syn[m["arm"]] else "o")
-            ax.annotate(f"{label(m['arm'], syn[m['arm']])}\nacc {m['accuracy']:.2f}, ECE {m['ece']:.3f}",
-                        (m["p50_ms"], m["cost_per_1k"]), fontsize=7, xytext=(5, 5), textcoords="offset points")
+            ax.scatter(
+                m["p50_ms"],
+                m["cost_per_1k"],
+                s=60,
+                color=colors[m["arm"]],
+                marker="s" if syn[m["arm"]] else "o",
+            )
+            ax.annotate(
+                f"{label(m['arm'], syn[m['arm']])}\nacc {m['accuracy']:.2f}, ECE {m['ece']:.3f}",
+                (m["p50_ms"], m["cost_per_1k"]),
+                fontsize=7,
+                xytext=(5, 5),
+                textcoords="offset points",
+            )
         ax.set_xscale("symlog", linthresh=1)
         ax.set_yscale("symlog", linthresh=0.001)
         ax.set_xlabel("p50 latency (ms)", fontsize=8)
@@ -368,7 +455,11 @@ def render_markdown(summary: dict[str, Any], figures: list[str]) -> str:
         lines.append("")
     if run:
         spent = run.get("spent_usd", 0.0)
-        kind = "projected cost of the same calls made for real" if run.get("spent_is_projected") else "actual spend"
+        kind = (
+            "projected cost of the same calls made for real"
+            if run.get("spent_is_projected")
+            else "actual spend"
+        )
         lines.append(
             f"Run: {run.get('rows', '?')} predictions, {run.get('repeats', '?')} repeats on a "
             f"{run.get('repeat_subset', '?')}-item subset, budget cap ${run.get('budget_cap_usd', 0):.2f}, "
@@ -377,7 +468,7 @@ def render_markdown(summary: dict[str, Any], figures: list[str]) -> str:
         lines.append("")
 
     lines += ["## Datasets", "", "| dataset | items | choices |", "|---|---:|---:|"]
-    for ds, info in summary["datasets"].items():
+    for info in summary["datasets"].values():
         lines.append(f"| {info['title']} | {info['n']} | {info['k']} |")
     lines.append("")
 
@@ -471,7 +562,11 @@ def render_markdown(summary: dict[str, Any], figures: list[str]) -> str:
             target = pts[-1]["accuracy"] - 0.01
             ok = [p for p in pts if p["accuracy"] >= target]
             best = min(ok, key=lambda p: p["cost_per_1k"])
-            ratio = best["cost_per_1k"] / pts[-1]["cost_per_1k"] if pts[-1]["cost_per_1k"] else float("nan")
+            ratio = (
+                best["cost_per_1k"] / pts[-1]["cost_per_1k"]
+                if pts[-1]["cost_per_1k"]
+                else float("nan")
+            )
             tag = " (synthetic)" if c["synthetic"] else ""
             lines.append(
                 f"| {ds} | {c['first']} -> {c['second']}{tag} | {_f(pts[0]['accuracy'])} | {_f(pts[-1]['accuracy'])} | "
@@ -520,6 +615,6 @@ def write_report(
     summary = summarise(rows, meta, n_boot=n_boot, cascade_pair=cascade_pair)
     out_dir.mkdir(parents=True, exist_ok=True)
     figures = make_figures(summary, out_dir / "figures")
-    (out_dir / "summary.json").write_text(json.dumps(summary, indent=1, default=float))
+    (out_dir / "summary.json").write_text(json.dumps(json_safe(summary), indent=1, allow_nan=False))
     (out_dir / "report.md").write_text(render_markdown(summary, figures))
     return summary
