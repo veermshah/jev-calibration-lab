@@ -48,7 +48,12 @@ def test_banking77_filters_to_subset():
     items, train = ds.sample_split(ds.DATASETS["banking77"], RAW / "banking77", n=10, seed=0)
     # change_pin (21) is outside the subset and must be dropped
     assert len(items) == 4
-    assert {d.gold for d in items} == {"card_arrival", "activate_my_card", "compromised_card", "declined_card_payment"}
+    assert {d.gold for d in items} == {
+        "card_arrival",
+        "activate_my_card",
+        "compromised_card",
+        "declined_card_payment",
+    }
     assert all(len(d.choices) == 10 for d in items)
 
 

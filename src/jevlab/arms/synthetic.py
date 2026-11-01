@@ -108,7 +108,9 @@ def synthetic_distribution(
     if repeat > 0:
         c = _sigmoid(_logit(c) + float(rep.normal(0, profile.repeat_noise)))
         if rep.random() < profile.flip * (1 - c):
-            label = others[int(rep.integers(len(others)))] if label == decision.gold else decision.gold
+            label = (
+                others[int(rep.integers(len(others)))] if label == decision.gold else decision.gold
+            )
 
     stated = _sigmoid(_logit(c) * profile.sharpness + profile.bias)
     if profile.round_to:
@@ -133,7 +135,9 @@ def _prompt_tokens(request: dict[str, Any]) -> int:
 
 
 def jev_transport(profile: SyntheticProfile) -> Transport:
-    def send(request: dict[str, Any], decision: Decision, repeat: int) -> tuple[dict[str, Any], float]:
+    def send(
+        request: dict[str, Any], decision: Decision, repeat: int
+    ) -> tuple[dict[str, Any], float]:
         probs, latency = synthetic_distribution(decision, profile, repeat)
         top = max(probs, key=lambda c: probs[c])
         return (
@@ -147,7 +151,10 @@ def jev_transport(profile: SyntheticProfile) -> Transport:
                         "probabilities": probs,
                     }
                 },
-                "usage": {"input_tokens": _prompt_tokens(request), "output_tokens": profile.output_tokens},
+                "usage": {
+                    "input_tokens": _prompt_tokens(request),
+                    "output_tokens": profile.output_tokens,
+                },
             },
             latency,
         )
@@ -156,7 +163,9 @@ def jev_transport(profile: SyntheticProfile) -> Transport:
 
 
 def claude_transport(profile: SyntheticProfile) -> Transport:
-    def send(request: dict[str, Any], decision: Decision, repeat: int) -> tuple[dict[str, Any], float]:
+    def send(
+        request: dict[str, Any], decision: Decision, repeat: int
+    ) -> tuple[dict[str, Any], float]:
         probs, latency = synthetic_distribution(decision, profile, repeat)
         text = json.dumps({"probabilities": {k: round(v, 3) for k, v in probs.items()}})
         return (
@@ -167,7 +176,10 @@ def claude_transport(profile: SyntheticProfile) -> Transport:
                 "model": request["model"],
                 "stop_reason": "end_turn",
                 "content": [{"type": "text", "text": text}],
-                "usage": {"input_tokens": _prompt_tokens(request), "output_tokens": profile.output_tokens},
+                "usage": {
+                    "input_tokens": _prompt_tokens(request),
+                    "output_tokens": profile.output_tokens,
+                },
             },
             latency,
         )
@@ -176,7 +188,9 @@ def claude_transport(profile: SyntheticProfile) -> Transport:
 
 
 def chat_transport(profile: SyntheticProfile) -> Transport:
-    def send(request: dict[str, Any], decision: Decision, repeat: int) -> tuple[dict[str, Any], float]:
+    def send(
+        request: dict[str, Any], decision: Decision, repeat: int
+    ) -> tuple[dict[str, Any], float]:
         probs, latency = synthetic_distribution(decision, profile, repeat)
         text = json.dumps({"probabilities": {k: round(v, 3) for k, v in probs.items()}})
         return (
@@ -184,7 +198,10 @@ def chat_transport(profile: SyntheticProfile) -> Transport:
                 "id": "chatcmpl-synthetic",
                 "model": request["model"],
                 "choices": [{"index": 0, "message": {"role": "assistant", "content": text}}],
-                "usage": {"prompt_tokens": _prompt_tokens(request), "completion_tokens": profile.output_tokens},
+                "usage": {
+                    "prompt_tokens": _prompt_tokens(request),
+                    "completion_tokens": profile.output_tokens,
+                },
             },
             latency,
         )

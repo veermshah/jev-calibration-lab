@@ -56,7 +56,9 @@ class JevModel(RemoteDecisionModel):
     def build_request(self, decision: Decision) -> dict[str, Any]:
         return build_jev_request(self.model_id, decision)
 
-    def parse_response(self, decision, response):  # type: ignore[no-untyped-def]
+    def parse_response(
+        self, decision: Decision, response: dict[str, Any]
+    ) -> tuple[dict[str, float], int, int]:
         return parse_jev_response(decision, response)
 
 
@@ -70,7 +72,9 @@ def http_transport(base_url: str, api_key: str, timeout_s: float = 30.0) -> Tran
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
     )
 
-    def send(request: dict[str, Any], decision: Decision, repeat: int) -> tuple[dict[str, Any], float]:
+    def send(
+        request: dict[str, Any], decision: Decision, repeat: int
+    ) -> tuple[dict[str, Any], float]:
         t0 = time.perf_counter()
         try:
             resp = client.post(base_url, json=request)

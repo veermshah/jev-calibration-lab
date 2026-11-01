@@ -40,7 +40,9 @@ class LogRegModel(DecisionModel):
         n_classes = len(set(labels))
         folds = max(2, min(3, min(labels.count(c) for c in set(labels))))
         pipe = make_pipeline(
-            TfidfVectorizer(ngram_range=(1, 2), min_df=2 if len(texts) > 50 else 1, sublinear_tf=True),
+            TfidfVectorizer(
+                ngram_range=(1, 2), min_df=2 if len(texts) > 50 else 1, sublinear_tf=True
+            ),
             LogisticRegressionCV(
                 Cs=[0.25, 1.0, 4.0, 16.0],
                 cv=folds,
@@ -68,7 +70,10 @@ class LogRegModel(DecisionModel):
         proba = pipe.predict_proba([decision_text(decision)])[0]  # type: ignore[attr-defined]
         latency = (time.perf_counter() - t0) * 1000.0
         classes = list(pipe.classes_)  # type: ignore[attr-defined]
-        probs = {cid: float(proba[classes.index(cid)]) if cid in classes else 0.0 for cid in decision.choice_ids}
+        probs = {
+            cid: float(proba[classes.index(cid)]) if cid in classes else 0.0
+            for cid in decision.choice_ids
+        }
         total = sum(probs.values()) or 1.0
         probs = {k: float(np.clip(v / total, 0, 1)) for k, v in probs.items()}
         return Prediction(probs=probs, latency_ms=latency, cost_usd=0.0)

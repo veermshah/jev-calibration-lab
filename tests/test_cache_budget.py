@@ -37,8 +37,12 @@ def test_cache_miss_then_hit(decision, prices, cache, budget):
 
 def test_cache_persists_across_instances(decision, prices, tmp_path, budget):
     transport, calls = counting_transport()
-    JevModel("jev", "jev-latest", transport, prices, ResponseCache(tmp_path), budget).predict(decision)
-    JevModel("jev", "jev-latest", transport, prices, ResponseCache(tmp_path), budget).predict(decision)
+    JevModel("jev", "jev-latest", transport, prices, ResponseCache(tmp_path), budget).predict(
+        decision
+    )
+    JevModel("jev", "jev-latest", transport, prices, ResponseCache(tmp_path), budget).predict(
+        decision
+    )
     assert calls["n"] == 1
 
 
@@ -47,7 +51,9 @@ def test_repeats_and_synthetic_get_separate_cache_entries(decision, prices, cach
     arm = JevModel("jev", "jev-latest", transport, prices, cache, budget)
     arm.predict(decision, repeat=0)
     arm.predict(decision, repeat=1)
-    JevModel("jev", "jev-latest", transport, prices, cache, budget, synthetic=True).predict(decision)
+    JevModel("jev", "jev-latest", transport, prices, cache, budget, synthetic=True).predict(
+        decision
+    )
     assert calls["n"] == 3
 
 

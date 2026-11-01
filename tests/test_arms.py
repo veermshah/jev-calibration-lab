@@ -65,7 +65,9 @@ def test_chat_roundtrip(decision):
     req = build_chat_request("m", decision)
     assert req["response_format"]["json_schema"]["strict"] is True
     resp = {
-        "choices": [{"message": {"content": json.dumps({"probabilities": {"negative": 1, "positive": 3}})}}],
+        "choices": [
+            {"message": {"content": json.dumps({"probabilities": {"negative": 1, "positive": 3}})}}
+        ],
         "usage": {"prompt_tokens": 5, "completion_tokens": 2},
     }
     probs, tin, tout = parse_chat_response(decision, resp)
@@ -95,7 +97,11 @@ def test_remote_arm_end_to_end_with_recorded_transport(decision, prices, cache, 
 
 def test_unparseable_reply_becomes_uniform_with_error(decision, prices, cache, budget):
     def transport(request, d, repeat):
-        return {"stop_reason": "end_turn", "content": [{"type": "text", "text": "nope"}], "usage": {}}, 5.0
+        return {
+            "stop_reason": "end_turn",
+            "content": [{"type": "text", "text": "nope"}],
+            "usage": {},
+        }, 5.0
 
     arm = ClaudeModel("haiku", "claude-haiku-5-5", transport, prices, cache, budget)
     pred = arm.predict(decision)
@@ -124,12 +130,22 @@ def test_real_run_without_key_is_a_clear_error(prices, cache, budget, tmp_path, 
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     cfg = load_arm_config(ROOT / "configs" / "arms.toml")
     with pytest.raises(ConfigError, match="TYPESAFE_API_KEY"):
-        build_arms(["jev"], cfg, dry_run=False, prices=prices, cache=cache, budget=budget, data_dir=tmp_path)
+        build_arms(
+            ["jev"],
+            cfg,
+            dry_run=False,
+            prices=prices,
+            cache=cache,
+            budget=budget,
+            data_dir=tmp_path,
+        )
 
 
 def test_unknown_arm(prices, cache, budget, tmp_path):
     with pytest.raises(ConfigError):
-        build_arms(["nope"], {}, dry_run=True, prices=prices, cache=cache, budget=budget, data_dir=tmp_path)
+        build_arms(
+            ["nope"], {}, dry_run=True, prices=prices, cache=cache, budget=budget, data_dir=tmp_path
+        )
 
 
 def test_synthetic_label_stays_argmax_on_many_choices():

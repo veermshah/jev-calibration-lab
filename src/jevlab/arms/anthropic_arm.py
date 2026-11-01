@@ -65,17 +65,23 @@ class ClaudeModel(RemoteDecisionModel):
     def build_request(self, decision: Decision) -> dict[str, Any]:
         return build_claude_request(self.model_id, decision, self.effort, self.max_tokens)
 
-    def parse_response(self, decision, response):  # type: ignore[no-untyped-def]
+    def parse_response(
+        self, decision: Decision, response: dict[str, Any]
+    ) -> tuple[dict[str, float], int, int]:
         return parse_claude_response(decision, response)
 
 
-def sdk_transport(api_key: str | None = None, max_retries: int = 4, timeout_s: float = 60.0) -> Transport:
+def sdk_transport(
+    api_key: str | None = None, max_retries: int = 4, timeout_s: float = 60.0
+) -> Transport:
     """Real transport through the official SDK. The SDK retries 408/409/429/5xx itself."""
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key, max_retries=max_retries, timeout=timeout_s)
 
-    def send(request: dict[str, Any], decision: Decision, repeat: int) -> tuple[dict[str, Any], float]:
+    def send(
+        request: dict[str, Any], decision: Decision, repeat: int
+    ) -> tuple[dict[str, Any], float]:
         t0 = time.perf_counter()
         message = client.messages.create(**request)
         latency = (time.perf_counter() - t0) * 1000.0

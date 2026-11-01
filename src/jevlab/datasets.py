@@ -28,9 +28,7 @@ import pandas as pd
 
 from .schema import Decision
 
-HF_PARQUET = (
-    "https://huggingface.co/datasets/{repo}/resolve/refs%2Fconvert%2Fparquet/{config}/{split}/0000.parquet"
-)
+HF_PARQUET = "https://huggingface.co/datasets/{repo}/resolve/refs%2Fconvert%2Fparquet/{config}/{split}/0000.parquet"
 LIAR_ZIP = "https://www.cs.ucsb.edu/~william/data/liar_dataset.zip"
 
 DEFAULT_N = 300
@@ -296,10 +294,7 @@ def sample_split(
     eval_df = spec.load_eval(raw)
     take = min(n, len(eval_df))
     sample = eval_df.sample(n=take, random_state=seed)
-    if spec.load_train is None:
-        train_df = eval_df.drop(index=sample.index)
-    else:
-        train_df = spec.load_train(raw)
+    train_df = eval_df.drop(index=sample.index) if spec.load_train is None else spec.load_train(raw)
     eval_items = to_decisions(spec, sample)
     train_items = to_decisions(spec, train_df)
     eval_ids = {d.id for d in eval_items}

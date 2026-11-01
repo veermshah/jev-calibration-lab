@@ -61,7 +61,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     if args.dry_run:
-        print("DRY RUN: API arms use synthetic replies (no network, no keys). Results are demo output.")
+        print(
+            "DRY RUN: API arms use synthetic replies (no network, no keys). Results are demo output."
+        )
     out = Path(args.results_dir) / args.run_name
     summary = run(arms, items, out, budget, repeats=args.repeats, repeat_subset=args.repeat_subset)
     spent = "projected" if args.dry_run else "spent"
@@ -110,7 +112,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--arms", default=ALL_ARMS)
     r.add_argument("--datasets", default="all")
     r.add_argument("--budget-usd", type=float, default=15.0)
-    r.add_argument("--dry-run", action="store_true", help="synthetic replies for API arms; no network")
+    r.add_argument(
+        "--dry-run", action="store_true", help="synthetic replies for API arms; no network"
+    )
     r.add_argument("--repeats", type=int, default=5)
     r.add_argument("--repeat-subset", type=int, default=50)
     r.add_argument("--limit", type=int, default=0, help="only the first N items per dataset")

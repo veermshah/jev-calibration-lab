@@ -27,7 +27,11 @@ def build_chat_request(model: str, decision: Decision, max_tokens: int = 512) ->
         ],
         "response_format": {
             "type": "json_schema",
-            "json_schema": {"name": "decision", "strict": True, "schema": probability_schema(decision)},
+            "json_schema": {
+                "name": "decision",
+                "strict": True,
+                "schema": probability_schema(decision),
+            },
         },
     }
 
@@ -55,7 +59,9 @@ class ChatCompletionsModel(RemoteDecisionModel):
     def build_request(self, decision: Decision) -> dict[str, Any]:
         return build_chat_request(self.model_id, decision, self.max_tokens)
 
-    def parse_response(self, decision, response):  # type: ignore[no-untyped-def]
+    def parse_response(
+        self, decision: Decision, response: dict[str, Any]
+    ) -> tuple[dict[str, float], int, int]:
         return parse_chat_response(decision, response)
 
 
@@ -70,7 +76,9 @@ def http_transport(base_url: str, api_key: str | None, timeout_s: float = 60.0) 
     client = httpx.Client(timeout=timeout_s, headers=headers)
     url = base_url.rstrip("/") + "/chat/completions"
 
-    def send(request: dict[str, Any], decision: Decision, repeat: int) -> tuple[dict[str, Any], float]:
+    def send(
+        request: dict[str, Any], decision: Decision, repeat: int
+    ) -> tuple[dict[str, Any], float]:
         t0 = time.perf_counter()
         try:
             resp = client.post(url, json=request)

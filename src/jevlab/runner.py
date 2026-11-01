@@ -23,7 +23,9 @@ class RunSummary:
     skipped: dict[str, int] = field(default_factory=dict)
 
 
-def plan_tasks(items: list[Decision], repeats: int, repeat_subset: int) -> list[tuple[Decision, int]]:
+def plan_tasks(
+    items: list[Decision], repeats: int, repeat_subset: int
+) -> list[tuple[Decision, int]]:
     """Repeat 0 covers every item; repeats 1..R-1 cover the first `repeat_subset` items."""
     tasks = [(d, 0) for d in items]
     for r in range(1, repeats):
@@ -124,9 +126,7 @@ def run(
             total.skipped.update({f"{arm.name}/{k}": v for k, v in s.skipped.items()})
             total.budget_stopped |= s.budget_stopped
     meta = {
-        "arms": [
-            {"name": a.name, "model": a.model_id, "synthetic": a.synthetic} for a in arms
-        ],
+        "arms": [{"name": a.name, "model": a.model_id, "synthetic": a.synthetic} for a in arms],
         "datasets": {k: len(v) for k, v in datasets.items()},
         "repeats": repeats,
         "repeat_subset": repeat_subset,
