@@ -1,0 +1,21 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Secrets
+.env
+
+# Data and run artifacts (re-created by `jevlab fetch` / `jevlab run`)
+data/
+data/raw/
+cache/
+results/
+_site/
+site/
