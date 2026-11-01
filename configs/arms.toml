@@ -1,0 +1,51 @@
+# Arms available to `jevlab run --arms ...`. Add a new section to benchmark any
+# model without touching code. Supported types:
+#   jev                TypeSafe System One API (native per-choice probabilities)
+#   anthropic          Claude via the Messages API, stated probabilities through structured output
+#   openai_compatible  Any server that speaks POST {base_url}/chat/completions with json_schema output
+#   logreg             Local TF-IDF + logistic regression trained on the disjoint train split
+#
+# Common keys: model (must exist in configs/pricing.toml), concurrency, api_key_env,
+# synthetic_profile (which synthetic generator to use under --dry-run).
+
+[arms.jev]
+type = "jev"
+model = "jev-latest"
+base_url = "https://api.typesafe.ai/v1/systemone"
+api_key_env = "TYPESAFE_API_KEY"
+concurrency = 8
+timeout_s = 30
+synthetic_profile = "jev"
+
+[arms.haiku]
+type = "anthropic"
+model = "claude-haiku-5-5"
+api_key_env = "ANTHROPIC_API_KEY"
+effort = "low"
+max_tokens = 2048
+concurrency = 4
+synthetic_profile = "haiku"
+
+[arms.sonnet]
+type = "anthropic"
+model = "claude-sonnet-5-5"
+api_key_env = "ANTHROPIC_API_KEY"
+effort = "low"
+max_tokens = 2048
+concurrency = 4
+synthetic_profile = "sonnet"
+
+[arms.logreg]
+type = "logreg"
+model = "tfidf-logreg"
+
+# Example: a self-hosted model behind an OpenAI-compatible server (vLLM, llama.cpp,
+# Ollama, a gateway...). Run it with `jevlab run --arms local`.
+[arms.local]
+type = "openai_compatible"
+model = "my-local-model"
+base_url = "http://localhost:8000/v1"
+api_key_env = "MY_ENDPOINT_API_KEY"   # optional; omitted from the request if unset
+max_tokens = 512
+concurrency = 2
+synthetic_profile = "generic"

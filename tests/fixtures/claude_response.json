@@ -1,0 +1,12 @@
+{
+  "id": "msg_fixture",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-5-5",
+  "stop_reason": "end_turn",
+  "content": [
+    {"type": "thinking", "thinking": "", "signature": "sig"},
+    {"type": "text", "text": "{\"probabilities\": {\"negative\": 0.3, \"positive\": 0.7}}"}
+  ],
+  "usage": {"input_tokens": 210, "output_tokens": 48}
+}

@@ -1,0 +1,12 @@
+{
+  "model": "jev-latest",
+  "answers": {
+    "answer": {
+      "type": "choice",
+      "choice": "positive",
+      "confidence": 0.82,
+      "probabilities": {"negative": 0.18, "positive": 0.82}
+    }
+  },
+  "usage": {"input_tokens": 96, "output_tokens": 9}
+}
