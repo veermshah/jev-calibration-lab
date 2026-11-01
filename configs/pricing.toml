@@ -1,0 +1,28 @@
+# Per-model pricing used for $/1k decisions, the budget cap and the cascade analysis.
+# Edit freely; prices are USD per million tokens.
+
+[models."jev-latest"]
+input_per_mtok = 0.042
+output_per_mtok = 0.0
+source = "TypeSafe: input tokens billable, output tokens currently free. Rate as listed by the community typesafe-jev clients; confirm on your TypeSafe account."
+
+[models."claude-haiku-5-5"]
+input_per_mtok = 0.10
+output_per_mtok = 0.50
+source = "Anthropic list price, prompts up to 100K tokens."
+
+[models."claude-sonnet-5-5"]
+input_per_mtok = 2.00
+output_per_mtok = 10.00
+source = "Anthropic list price."
+
+[models."tfidf-logreg"]
+input_per_mtok = 0.0
+output_per_mtok = 0.0
+source = "Runs locally."
+
+# Example for a pluggable OpenAI-compatible arm (see configs/arms.toml).
+[models."my-local-model"]
+input_per_mtok = 0.0
+output_per_mtok = 0.0
+source = "Self-hosted."
