@@ -7,6 +7,7 @@ GitHub Pages as-is.
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -169,8 +170,15 @@ function frame(w, h, pad, xl, yl) {
   <text x="10" y="${(h - pad) / 2}" transform="rotate(-90 10 ${(h - pad) / 2})" text-anchor="middle">${yl}</text>`;
 }
 
+const MACRO_NOTE = {
+  reliability: 'All datasets, pooled: every item from every dataset binned together',
+  risk: 'All datasets, macro average: mean risk of the per-dataset curves at each coverage',
+  cascade: 'all datasets (macro average of the per-dataset sweeps at each &tau;)',
+};
+const dsTitle = ds => ds === 'macro' ? '' : esc(S.datasets[ds].title);
+
 function renderReliability() {
-  const ds = state.dataset === 'macro' ? Object.keys(S.datasets)[0] : state.dataset;
+  const ds = state.dataset;
   const W = 240, H = 220, P = 30;
   const x = v => P + v * (W - P - 8), y = v => (H - P) - v * (H - P - 8);
   document.getElementById('reliability').innerHTML = visible().map(a => {
@@ -180,7 +188,7 @@ function renderReliability() {
       <line x1="${x(b.lo) + 2}" x2="${x(b.hi) - 2}" y1="${y(b.conf)}" y2="${y(b.conf)}" stroke="currentColor" stroke-width="2"/>`).join('');
     return `<div class="card"><h3>${esc(a)}${badge(a)}</h3><svg viewBox="0 0 ${W} ${H}" style="color:var(--fg)">
       ${frame(W, H, P, 'confidence', 'accuracy')}<line class="diag" x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}"/>${bars}</svg>
-      <div style="font-size:12px;color:var(--muted)">${esc(S.datasets[ds].title)}</div></div>`;
+      <div style="font-size:12px;color:var(--muted)">${ds === 'macro' ? MACRO_NOTE.reliability : dsTitle(ds)}</div></div>`;
   }).join('');
 }
 
@@ -201,23 +209,23 @@ function lineChart(el, series, xl, yl, xlog) {
 }
 
 function renderRiskCoverage() {
-  const ds = state.dataset === 'macro' ? Object.keys(S.datasets)[0] : state.dataset;
+  const ds = state.dataset;
   const series = visible().filter(a => (S.risk_coverage[a] || {})[ds]).map(a =>
     ({ points: S.risk_coverage[a][ds], color: color[a], dash: isSyn(a) }));
   document.getElementById('rcLegend').innerHTML = visible().map(a =>
     `<span><span class="swatch" style="background:${color[a]}"></span>${esc(a)}${isSyn(a) ? ' (synthetic)' : ''}</span>`).join('') +
-    `<span style="color:var(--muted)">${esc(S.datasets[ds].title)}</span>`;
+    `<span style="color:var(--muted)">${ds === 'macro' ? MACRO_NOTE.risk : dsTitle(ds)}</span>`;
   lineChart(document.getElementById('riskCoverage'), series, 'coverage', 'risk (error rate)', false);
 }
 
 function renderCascade() {
-  const ds = state.dataset === 'macro' ? Object.keys(S.cascade)[0] : state.dataset;
+  const ds = state.dataset;
   const c = S.cascade[ds];
   const lede = document.getElementById('cascadeLede');
   if (!c) { lede.textContent = 'No cascade for this dataset.'; document.getElementById('cascade').innerHTML = ''; return; }
   lede.innerHTML = `${esc(c.first)} answers first; items whose top probability is below &tau; go to ${esc(c.second)}.
     Each dot is one &tau; (hover for details), plotted as cost per 1k decisions (log scale) against accuracy on
-    ${esc(S.datasets[ds].title)}.${c.synthetic ? ' <span class="badge">synthetic</span>' : ''}`;
+    ${ds === 'macro' ? MACRO_NOTE.cascade : dsTitle(ds)}.${c.synthetic ? ' <span class="badge">synthetic</span>' : ''}`;
   const pts = c.points.map(p => [p.cost_per_1k, p.accuracy,
     `tau ${fmt(p.tau, 2)}${p.always_escalate ? ' (always escalate)' : ''}: escalate ${fmt(100 * p.escalation_rate, 0)}%, acc ${fmt(p.accuracy)}, $${fmt(p.cost_per_1k, 4)}/1k`]);
   lineChart(document.getElementById('cascade'), [{ points: pts, color: 'var(--accent)', dots: true }], '$ per 1k decisions (log)', 'accuracy', true);
@@ -245,9 +253,12 @@ REPO_URL = "https://github.com/veermshah/jev-calibration-lab"
 
 
 def render_site(summary: dict[str, Any], repo_url: str = REPO_URL) -> str:
-    from .report import json_safe
+    from .report import add_macro_views, json_safe
 
-    data = json.dumps(json_safe(summary), allow_nan=False).replace("</", "<\\/")
+    # The "All datasets" view needs its own chart data; derive it without touching the input.
+    data = json.dumps(json_safe(add_macro_views(copy.deepcopy(summary))), allow_nan=False).replace(
+        "</", "<\\/"
+    )
     return (
         TEMPLATE.replace("__DATA__", data)
         .replace("__GENERATED__", str(summary.get("generated", "")))

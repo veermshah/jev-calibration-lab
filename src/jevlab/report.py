@@ -235,6 +235,100 @@ def summarise(
     return out
 
 
+# --------------------------------------------------------------------------- macro views
+
+MACRO = "macro"
+_CASCADE_AVG_KEYS = ("escalation_rate", "accuracy", "ece", "cost_per_1k", "mean_latency_ms")
+
+
+def pool_reliability(per_dataset: list[list[dict[str, float]]]) -> list[dict[str, float]]:
+    """Pool equal-width reliability bins across datasets, weighting each bin by its count.
+
+    Because every dataset uses the same bin edges, this equals binning all items from all
+    datasets together: the pooled diagram is the reliability of the union of the datasets.
+    """
+    acc: dict[tuple[float, float], list[float]] = {}
+    for bins in per_dataset:
+        for b in bins:
+            key = (round(float(b["lo"]), 9), round(float(b["hi"]), 9))
+            s = acc.setdefault(key, [0.0, 0.0, 0.0])
+            n = float(b["count"])
+            s[0] += n
+            s[1] += n * float(b["conf"])
+            s[2] += n * float(b["acc"])
+    return [
+        {"lo": lo, "hi": hi, "count": n, "conf": c / n, "acc": a / n}
+        for (lo, hi), (n, c, a) in sorted(acc.items())
+        if n > 0
+    ]
+
+
+def average_risk_coverage(curves: list[list[list[float]]], n_points: int = 60) -> list[list[float]]:
+    """Macro-average risk-coverage curves: interpolate each onto a shared coverage grid
+    and take the unweighted mean risk, so every dataset counts equally (like macro AURC).
+    """
+    curves = [c for c in curves if c]
+    if not curves:
+        return []
+    start = max(float(c[0][0]) for c in curves)
+    grid = np.linspace(start, 1.0, n_points)
+    risks = [np.interp(grid, [float(p[0]) for p in c], [float(p[1]) for p in c]) for c in curves]
+    mean = np.mean(risks, axis=0)
+    return [[float(x), float(r)] for x, r in zip(grid, mean, strict=True)]
+
+
+def average_cascade(per_dataset: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Average cascade sweeps across datasets point by point (same tau grid required)."""
+    if not per_dataset:
+        return None
+    first = per_dataset[0]
+    if any(c["first"] != first["first"] or c["second"] != first["second"] for c in per_dataset):
+        return None
+    taus = [[(p["tau"], p.get("always_escalate", False)) for p in c["points"]] for c in per_dataset]
+    if any(t != taus[0] for t in taus):
+        return None
+    points = []
+    for i, (tau, always) in enumerate(taus[0]):
+        pt: dict[str, Any] = {"tau": tau, "always_escalate": always}
+        for k in _CASCADE_AVG_KEYS:
+            vals = [c["points"][i].get(k) for c in per_dataset]
+            nums = [float(v) for v in vals if v is not None]
+            pt[k] = float(np.mean(nums)) if nums else None
+        points.append(pt)
+    return {
+        "first": first["first"],
+        "second": first["second"],
+        "synthetic": any(c["synthetic"] for c in per_dataset),
+        "points": points,
+    }
+
+
+def add_macro_views(summary: dict[str, Any]) -> dict[str, Any]:
+    """Add "macro" entries for the all-datasets view of the charts (in place; idempotent).
+
+    - reliability: bins pooled over every item in every dataset (count-weighted).
+    - risk_coverage: per-dataset curves averaged on a shared coverage grid (macro).
+    - cascade: per-dataset sweeps averaged at each threshold tau (macro).
+    """
+    datasets = [d for d in summary.get("datasets", {}) if d != MACRO]
+    for per_arm in summary.get("reliability", {}).values():
+        if MACRO not in per_arm:
+            pooled = pool_reliability([per_arm[d] for d in datasets if d in per_arm])
+            if pooled:
+                per_arm[MACRO] = pooled
+    for per_arm in summary.get("risk_coverage", {}).values():
+        if MACRO not in per_arm:
+            avg = average_risk_coverage([per_arm[d] for d in datasets if d in per_arm])
+            if avg:
+                per_arm[MACRO] = avg
+    cascade = summary.get("cascade")
+    if cascade is not None and MACRO not in cascade:
+        avg_c = average_cascade([cascade[d] for d in datasets if d in cascade])
+        if avg_c is not None:
+            cascade[MACRO] = avg_c
+    return summary
+
+
 def json_safe(obj: Any) -> Any:
     """Replace NaN/inf with None so the file is strict JSON (browsers reject NaN)."""
     if isinstance(obj, float):
