@@ -109,7 +109,9 @@ arm, and transient failures (429, 5xx, timeouts) are retried with exponential ba
 
 The full report, with per-dataset tables and confidence intervals, is in
 [`report/report.md`](report/report.md). The interactive version is the
-[leaderboard](https://veermshah.github.io/jev-calibration-lab/).
+[leaderboard](https://veermshah.github.io/jev-calibration-lab/). Its "All datasets" view
+macro-averages the table metrics and the risk-coverage and cascade curves (each dataset weighted
+equally) and pools the reliability bins over every item from every dataset.
 
 **Real numbers: the TF-IDF baseline** (300 items per dataset, 95% bootstrap CI on accuracy):
 
